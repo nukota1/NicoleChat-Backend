@@ -6,7 +6,15 @@ compatibility_date = "2024-06-01"
 tag = "v1"
 new_sqlite_classes = [ "ChatRoomDurableObject" ]
 
+[[durable_objects.bindings]]
+name = "ROOM_DO"
+class_name = "ChatRoomDurableObject"
+
 [[d1_databases]]
 binding = "ROOM_DB"
 database_name = "family_chat_db"
 database_id = "66744845-057c-459b-98a1-fefaf2659752"
+
+# wrangler.toml (wrangler v3.88.0^)
+[observability.logs]
+enabled = true
