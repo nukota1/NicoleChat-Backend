@@ -14,11 +14,32 @@ export class Room {
 
   // POST: メッセージ追加
   async addMessage(message) {
+    console.log("[addMessage] called", message);
     // 1週間より古いメッセージを削除
     const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     this.history = this.history.filter(m => m.timestamp > oneWeekAgo);
     this.history.push(message);
     await this.state.storage.put('history', this.history);
+    console.log("[addMessage] history saved to Durable Object storage");
+    // D1に保存
+    if (this.env.ROOM_DB) {
+      try {
+        console.log("[addMessage] saving to D1...");
+        await this.env.ROOM_DB.prepare(
+          "INSERT INTO chat_memory (original, written_by, written_at, room_id) VALUES (?, ?, ?, ?)"
+        ).bind(
+          message.text,
+          message.user,
+          new Date(message.timestamp).toISOString().replace('T', ' ').replace('Z', ''),
+          this.state.id.toString()
+        ).run();
+        console.log("[addMessage] saved to D1 successfully");
+      } catch (e) {
+        console.error("[addMessage] failed to save to D1", e);
+      }
+    } else {
+      console.warn("[addMessage] ROOM_DB binding is missing");
+    }
   }
 
   // GET: 履歴取得

@@ -27,13 +27,34 @@ export class ChatRoomDurableObject {
     await this.initialize();
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/history") {
-      // 新しいメッセージを追加
+      // 新しいメッセージをDurable Objectに保存
       const data = await request.json();
       console.log("[DO POST] 受信データ:", data);
       this.memoryHistory.push(data);
       this.pruneOldHistory();
       console.log("[DO POST] 保存直前の履歴:", this.memoryHistory);
       await this.state.storage.put("history", this.memoryHistory);
+      // D1書き込みをChatRoomD1Objectに依頼
+      try {
+        if (!this.env.ROOM_DO) {
+          throw new Error("ROOM_DO is undefined. Durable Object binding is missing or misnamed.");
+        }
+        const d1Id = this.env.ROOM_DO.idFromName("d1");
+        const d1Obj = this.env.ROOM_DO.get(d1Id);
+        await d1Obj.fetch(new Request("https://dummy/d1write", {
+          method: "POST",
+          body: JSON.stringify({
+            text: data.text,
+            user: data.user,
+            timestamp: data.timestamp,
+            roomId: this.state.id.toString()
+          }),
+          headers: { "Content-Type": "application/json" }
+        }));
+        console.log("[DO] D1書き込み依頼送信完了");
+      } catch (e) {
+        console.error("[DO] D1書き込み依頼失敗", e);
+      }
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
     if (request.method === "GET" && url.pathname === "/history") {
@@ -49,7 +70,30 @@ export class ChatRoomDurableObject {
   }
 }// Durable Objectバインディング用エクスポート
 
-
+export class ChatRoomD1Object {
+  async fetch(request) {
+    if (request.method === "POST") {
+      try {
+        const { text, user, timestamp, roomId } = await request.json();
+        console.log("[D1Object] D1書き込み開始", { text, user, timestamp, roomId });
+        await this.env.ROOM_DB.prepare(
+          "INSERT INTO chat_memory (original, written_by, written_at, room_id) VALUES (?, ?, ?, ?)"
+        ).bind(
+          text,
+          user,
+          new Date(timestamp).toISOString().replace('T', ' ').replace('Z', ''),
+          roomId
+        ).run();
+        console.log("[D1Object] D1書き込み成功");
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      } catch (e) {
+        console.error("[D1Object] D1書き込み失敗", e);
+        return new Response(JSON.stringify({ error: "D1書き込み失敗" }), { status: 500 });
+      }
+    }
+    return new Response("Not found", { status: 404 });
+  }
+}
 
 // import { Room } from './objects/room.js';
 
@@ -81,10 +125,11 @@ export default {
       const resp = await obj.fetch(doRequest);
       // CORSヘッダ付与
       const newResp = new Response(await resp.text(), resp);
-      corsHeaders['Content-Type'] = 'application/json';
+      corsHeaders['Content-Type'] = 'application/json'
       for (const [k, v] of Object.entries(corsHeaders)) newResp.headers.set(k, v);
       return newResp;
     }
+    // submitしたときに通る
     if (request.method === 'POST' && new URL(request.url).pathname === '/api/message') {
       try {
         const { text } = await request.json();

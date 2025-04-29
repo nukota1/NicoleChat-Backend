@@ -12,8 +12,8 @@ class_name = "ChatRoomDurableObject"
 
 [[d1_databases]]
 binding = "ROOM_DB"
-database_name = "family_chat_db"
-database_id = "66744845-057c-459b-98a1-fefaf2659752"
+database_name = "family_ai_chatbot"
+database_id = "668f9925-1877-43d6-a639-6745c69f6da7"
 
 # wrangler.toml (wrangler v3.88.0^)
 [observability.logs]
