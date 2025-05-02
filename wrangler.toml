@@ -2,9 +2,10 @@ name = "ai-chat-backend"
 main = "worker.js"
 compatibility_date = "2024-06-01"
 
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = [ "ChatRoomDurableObject" ]
+# ↓ SQLite-backed DO を使っていないので、このセクションを削除！
+# [[migrations]]
+# tag = "v1"
+# new_sqlite_classes = [ "ChatRoomDurableObject" ]
 
 [[durable_objects.bindings]]
 name = "ROOM_DO"
@@ -18,3 +19,7 @@ database_id = "668f9925-1877-43d6-a639-6745c69f6da7"
 # wrangler.toml (wrangler v3.88.0^)
 [observability.logs]
 enabled = true
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = [ "ChatRoomDurableObject" ]
